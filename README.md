@@ -43,8 +43,8 @@ Using **Gemini Pro** on **Google Cloud Run**, it creates **personalized, data-ba
 ## 🏆 Built With
 `Gemini Pro` · `Google Cloud Run` · `HTML` · `CSS` · `JavaScript` · `FastAPI`  
 
----
 
 ## 🤖 Contributors
 **Azkhan** — Developer · Designer · AI Engineer  
+
 *Developed for Hack Nation 2025 in collaboration with MIT Sloan AI Club*
