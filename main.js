@@ -1,22 +1,10 @@
+// === CONFIG ===
 const API_URL = "https://pathfinder-246290474963.us-central1.run.app/api/generate";
 
-const generateBtn = document.getElementById("generateBtn");
-const jobInput = document.getElementById("jobInput");
-const loader = document.getElementById("loader");
-const results = document.getElementById("results");
-const demoOutput = document.getElementById("demoOutput");
-const skillsGrid = document.getElementById("skillsGrid");
-const courseList = document.getElementById("courseList");
-const durationValue = document.getElementById("durationValue");
-const salaryValue = document.getElementById("salaryValue");
-const downloadBtn = document.getElementById("downloadBtn");
-
-function showLoader(show) {
-  loader.style.display = show ? "block" : "none";
-}
-
+// === Starfield effect ===
 function generateStarfield() {
   const field = document.getElementById("starfield");
+  if (!field) return;
   for (let i = 0; i < 100; i++) {
     const s = document.createElement("div");
     s.className = "star";
@@ -27,57 +15,78 @@ function generateStarfield() {
   }
 }
 
+// === Navbar scroll effect ===
+const navbar = document.getElementById("navbar");
+window.addEventListener("scroll", () => {
+  navbar.classList.toggle("scrolled", window.scrollY > 50);
+});
+
+// === Elements ===
+const generateBtn = document.getElementById("generateBtn");
+const jobInput = document.getElementById("jobInput");
+const compareInput = document.getElementById("compareInput");
+const compareBtn = document.getElementById("compareBtn");
+const loader = document.getElementById("loader");
+const results = document.getElementById("results");
+const demoOutput = document.getElementById("demoOutput");
+const skillsGrid = document.getElementById("skillsGrid");
+const courseList = document.getElementById("courseList");
+const durationValue = document.getElementById("durationValue");
+const salaryValue = document.getElementById("salaryValue");
+const downloadBtn = document.getElementById("downloadBtn");
+const compareSection = document.getElementById("compareResults");
+const compareTable = document.getElementById("compareTable");
+
+// === Helper ===
+function showLoader(show) {
+  loader.style.display = show ? "block" : "none";
+}
+
+function cleanJsonString(text) {
+  if (!text) return "{}";
+  return text.replace(/```json|```/g, "").trim();
+}
+
+async function fetchRoadmap(role) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job_title: role })
+  });
+  const data = await res.json();
+  if (data.ai_text) {
+    try {
+      return JSON.parse(cleanJsonString(data.ai_text));
+    } catch (e) {
+      console.warn("Could not parse AI JSON; returning as description only", e);
+      return { description: data.ai_text };
+    }
+  }
+  return data;
+}
+
+// === Generate single roadmap ===
 async function generateRoadmap() {
-  const job = jobInput.value.trim();
-  if (!job) return alert("Enter a job title!");
+  const role = jobInput.value.trim();
+  if (!role) {
+    alert("Please enter a job title!");
+    return;
+  }
+  // Hide compare section
+  compareSection.style.display = "none";
 
   demoOutput.classList.add("visible");
   showLoader(true);
   results.style.display = "none";
   generateBtn.disabled = true;
-  generateBtn.textContent = "Generating...";
+  generateBtn.textContent = "Generating…";
 
   try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job_title: job })
-    });
-
-    const data = await res.json();
-    console.log("RAW API RESPONSE:", data);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(data.ai_text.replace(/```json|```/g, "").trim());
-    } catch {
-      console.warn("Could not parse AI JSON — using fallback sample.");
-      parsed = {
-        skills: [
-          "Python Programming",
-          "SQL",
-          "Machine Learning",
-          "Statistics",
-          "Data Visualization",
-          "Deep Learning",
-          "Pandas & NumPy",
-          "MLOps Basics",
-          "APIs & Cloud",
-          "Communication"
-        ],
-        courses: [
-          { title: "Python for Everybody", url: "https://www.coursera.org/specializations/python" },
-          { title: "Intro to Machine Learning", url: "https://www.kaggle.com/learn/intro-to-machine-learning" }
-        ],
-        duration_months: 6,
-        avg_salary_usd: "$90,000 - $130,000"
-      };
-    }
-
-    populateResults(parsed, job);
+    const data = await fetchRoadmap(role);
+    populateResults(data, role);
   } catch (err) {
-    console.error("Request failed:", err);
-    alert("Error connecting to backend");
+    console.error("Error fetching roadmap:", err);
+    alert("Something went wrong. Please try again later.");
   } finally {
     showLoader(false);
     generateBtn.disabled = false;
@@ -85,56 +94,63 @@ async function generateRoadmap() {
   }
 }
 
-function populateResults(data, job) {
+// === Populate results for single role ===
+function populateResults(data, role) {
   results.style.display = "block";
   skillsGrid.innerHTML = "";
   courseList.innerHTML = "";
 
-  (data.skills || []).forEach((s) => {
-    const chip = document.createElement("div");
-    chip.className = "skill-chip";
-    chip.textContent = s;
-    skillsGrid.appendChild(chip);
-  });
+  const skills = data.skills || [];
+  const courses = data.courses || [];
 
-  (data.courses || []).forEach((c) => {
-    const item = document.createElement("div");
-    item.className = "course-item";
-    item.innerHTML = `<a href="${c.url}" target="_blank">${c.title}</a>`;
-    courseList.appendChild(item);
-  });
+  if (skills.length) {
+    skills.forEach(s => {
+      const chip = document.createElement("div");
+      chip.className = "skill-chip";
+      chip.textContent = s;
+      skillsGrid.appendChild(chip);
+    });
+  } else {
+    skillsGrid.innerHTML = "<p style='color:#aaa;'>No skills data found.</p>";
+  }
 
-  durationValue.textContent = data.duration_months + " months";
-  salaryValue.textContent = data.avg_salary_usd;
+  if (courses.length) {
+    courses.forEach(c => {
+      const item = document.createElement("div");
+      item.className = "course-item";
+      item.innerHTML = `<a href="${c.url}" target="_blank">${c.title}</a>`;
+      courseList.appendChild(item);
+    });
+  } else {
+    courseList.innerHTML = "<p style='color:#aaa;'>No courses data found.</p>";
+  }
 
-  console.log("Rendered:", data);
+  durationValue.textContent = data.duration_months
+    ? `${data.duration_months} months`
+    : "N/A";
+  salaryValue.textContent = data.avg_salary_usd || "N/A";
+
+  downloadBtn.onclick = () => downloadRoadmap(role, data);
 }
 
-generateBtn.addEventListener("click", generateRoadmap);
-jobInput.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") generateRoadmap();
-});
-
-generateStarfield();
-
-// === Download as TXT ===
-function downloadRoadmap(job, data) {
+// === Download roadmap as .txt ===
+function downloadRoadmap(role, data) {
   const content = `
 PathFinder AI - Career Roadmap
 ==============================
 
-Role: ${job}
+Role: ${role}
 
-Top 10 Skills:
-${(data.skills || []).map((s, i) => `${i + 1}. ${s}`).join("\n")}
+Top Skills:
+${(data.skills || []).map((s,i) => `${i+1}. ${s}`).join("\n")}
 
 Recommended Courses:
 ${(data.courses || [])
-    .map((c, i) => `${i + 1}. ${c.title}\n   ${c.url}`)
+    .map((c,i) => `${i+1}. ${c.title}\n   ${c.url}`)
     .join("\n\n")}
 
 Duration: ${data.duration_months || "N/A"} months
-Average Salary: ${data.avg_salary_usd || "N/A"}
+Avg Salary: ${data.avg_salary_usd || "N/A"}
 
 Generated by PathFinder AI
   `.trim();
@@ -142,28 +158,71 @@ Generated by PathFinder AI
   const blob = new Blob([content], { type: "text/plain" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `${job.replace(/\s+/g, "_")}_Roadmap.txt`;
+  link.download = `${role.replace(/\s+/g, "_")}_Roadmap.txt`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(link.href);
 }
 
-// Connect the download button dynamically after results load
-downloadBtn.addEventListener("click", () => {
-  const job = jobInput.value.trim() || "Career_Roadmap";
-  const skills = Array.from(document.querySelectorAll("#skillsGrid .skill-chip")).map((el) => el.textContent);
-  const courses = Array.from(document.querySelectorAll("#courseList a")).map((el) => ({
-    title: el.textContent,
-    url: el.href
-  }));
+// === Compare two roles ===
+async function compareRoadmaps() {
+  const role1 = jobInput.value.trim();
+  const role2 = compareInput.value.trim();
+  if (!role1 || !role2) {
+    alert("Please enter both roles to compare!");
+    return;
+  }
+  // Hide single results while comparing
+  results.style.display = "none";
 
-  const data = {
-    skills,
-    courses,
-    duration_months: durationValue.textContent.replace(" months", ""),
-    avg_salary_usd: salaryValue.textContent
-  };
+  showLoader(true);
+  compareBtn.disabled = true;
+  compareBtn.textContent = "Comparing…";
 
-  downloadRoadmap(job, data);
-});
+  try {
+    const [data1, data2] = await Promise.all([
+      fetchRoadmap(role1),
+      fetchRoadmap(role2)
+    ]);
+    populateComparison(role1, data1, role2, data2);
+  } catch (err) {
+    console.error("Error comparing:", err);
+    alert("Comparison failed. Please try again.");
+  } finally {
+    showLoader(false);
+    compareBtn.disabled = false;
+    compareBtn.textContent = "Compare Roles";
+  }
+}
+
+// === Populate comparison table ===
+function populateComparison(role1, data1, role2, data2) {
+  compareSection.style.display = "block";
+
+  const skills1 = data1.skills || [];
+  const skills2 = data2.skills || [];
+  const common = skills1.filter(s => skills2.includes(s));
+  const unique1 = skills1.filter(s => !skills2.includes(s));
+  const unique2 = skills2.filter(s => !skills1.includes(s));
+
+  compareTable.innerHTML = `
+    <thead>
+      <tr><th>Aspect</th><th>${role1}</th><th>${role2}</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Common Skills</td><td colspan="2">${common.join(", ") || "None"}</td></tr>
+      <tr><td>Unique Skills</td><td>${unique1.join(", ") || "None"}</td><td>${unique2.join(", ") || "None"}</td></tr>
+      <tr><td>Avg Salary</td><td>${data1.avg_salary_usd || "N/A"}</td><td>${data2.avg_salary_usd || "N/A"}</td></tr>
+      <tr><td>Duration</td><td>${data1.duration_months || "N/A"} months</td><td>${data2.duration_months || "N/A"} months</td></tr>
+    </tbody>
+  `;
+}
+
+// === Event listeners ===
+generateBtn.addEventListener("click", generateRoadmap);
+jobInput.addEventListener("keypress", e => { if (e.key === "Enter") generateRoadmap(); });
+compareBtn.addEventListener("click", compareRoadmaps);
+compareInput.addEventListener("keypress", e => { if (e.key === "Enter") compareRoadmaps(); });
+
+generateStarfield();
