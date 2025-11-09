@@ -228,83 +228,82 @@ compareInput.addEventListener("keypress", e => { if (e.key === "Enter") compareR
 generateStarfield();
 
 // ============= Compare Roles Logic =============
-const compareBtn = document.getElementById("compareBtn");
-const compareLoader = document.getElementById("compareLoader");
-const compareResults = document.getElementById("compareResults");
-const compareError = document.getElementById("compareError");
-const compareTableBody = document.getElementById("compareTableBody");
+const API_BASE = "https://pathfinder-246290474963.us-central1.run.app";
 
-compareBtn?.addEventListener("click", async () => {
+// === Generate (existing button) ===
+async function generateRoadmap(jobTitle) {
+  const r = await fetch(`${API_BASE}/api/generate`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ job_title: jobTitle })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// === Compare (new compare section) ===
+async function compareRoles(roleA, roleB) {
+  const r = await fetch(`${API_BASE}/api/compare`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ role_a: roleA, role_b: roleB })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Wire to your existing UI ids:
+document.getElementById("compareBtn")?.addEventListener("click", async () => {
   const roleA = document.getElementById("roleA").value.trim();
   const roleB = document.getElementById("roleB").value.trim();
-  compareError.style.display = "none";
-  compareResults.style.display = "none";
-
-  if (!roleA || !roleB) {
-    compareError.textContent = "Please enter both roles.";
-    compareError.style.display = "block";
-    return;
-  }
-
-  compareLoader.style.display = "block";
-
+  const err = document.getElementById("compareError");
+  const loader = document.getElementById("compareLoader");
+  const out = document.getElementById("compareResults");
+  err.style.display = "none";
+  out.style.display = "none";
+  loader.style.display = "block";
   try {
-    const resp = await fetch("https://pathfinder-246290474963.us-central1.run.app/api/compare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role_a: roleA, role_b: roleB }),
+    const data = await compareRoles(roleA, roleB);
+    loader.style.display = "none";
+    out.style.display = "block";
+
+    // supports both strict JSON and ai_text fallback
+    let payload = data;
+    if (data.ai_text) {
+      try { payload = JSON.parse(data.ai_text); } catch {}
+    }
+
+    // summary
+    document.getElementById("roleA_th").textContent = roleA || "Role A";
+    document.getElementById("roleB_th").textContent = roleB || "Role B";
+    document.getElementById("roleA_summary").textContent = roleA;
+    document.getElementById("roleB_summary").textContent = roleB;
+
+    // table rows
+    const tbody = document.getElementById("compareTableBody");
+    tbody.innerHTML = "";
+    (payload.table || []).forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="padding:8px;">${row.metric || ""}</td>
+        <td style="padding:8px;">${row.a || row.role_a || ""}</td>
+        <td style="padding:8px;">${row.b || row.role_b || ""}</td>`;
+      tbody.appendChild(tr);
     });
 
-    if (!resp.ok) throw new Error("Failed to fetch comparison.");
+    // skills
+    const toChip = (txt) => `<div class="skill-chip">${txt}</div>`;
+    document.getElementById("skillsOverlap").innerHTML =
+      (payload.skills_overlap || []).map(toChip).join("");
+    document.getElementById("skillsOnlyA").innerHTML =
+      (payload.unique_a || []).map(toChip).join("");
+    document.getElementById("skillsOnlyB").innerHTML =
+      (payload.unique_b || []).map(toChip).join("");
 
-    const data = await resp.json();
-    compareLoader.style.display = "none";
-    compareResults.style.display = "block";
 
-    // Fill comparison table
-    compareTableBody.innerHTML = "";
-    if (data.table && data.table.length > 0) {
-      data.table.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td style="padding:8px;">${row.metric}</td>
-          <td style="padding:8px;">${row.roleA}</td>
-          <td style="padding:8px;">${row.roleB}</td>
-        `;
-        compareTableBody.appendChild(tr);
-      });
-    }
-
-    // Add AI suggestions
-    let insightsHTML = "";
-    if (data.suggestions && data.suggestions.length > 0) {
-      insightsHTML = `
-        <div class="glass-card">
-          <h3>💡 Gemini Insights</h3>
-          <ul style="list-style:disc; margin-left:1.5rem;">
-            ${data.suggestions.map((tip) => `<li>${tip}</li>`).join("")}
-          </ul>
-        </div>
-      `;
-    }
-
-    // Skills overlap and unique (optional display)
-    if (data.skills_overlap) {
-      insightsHTML += `
-        <div class="glass-card">
-          <h3>Skills Comparison</h3>
-          <p><strong>Overlap:</strong> ${data.skills_overlap.join(", ")}</p>
-          <p><strong>Unique to ${roleA}:</strong> ${data.unique_a.join(", ")}</p>
-          <p><strong>Unique to ${roleB}:</strong> ${data.unique_b.join(", ")}</p>
-        </div>
-      `;
-    }
-
-    compareResults.insertAdjacentHTML("beforeend", insightsHTML);
-  } catch (err) {
-    compareLoader.style.display = "none";
-    compareError.textContent = "AI comparison failed. Try again.";
-    compareError.style.display = "block";
-    console.error(err);
+  } catch (e) {
+    loader.style.display = "none";
+    err.textContent = `Compare failed: ${e.message}`;
+    err.style.display = "block";
   }
 });
