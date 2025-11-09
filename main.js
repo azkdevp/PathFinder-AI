@@ -228,20 +228,11 @@ compareInput.addEventListener("keypress", e => { if (e.key === "Enter") compareR
 generateStarfield();
 
 // ============= Compare Roles Logic =============
+
+// Keep your original API_URL for /api/generate. This block only adds /api/compare.
 const API_BASE = "https://pathfinder-246290474963.us-central1.run.app";
 
-// === Generate (existing button) ===
-async function generateRoadmap(jobTitle) {
-  const r = await fetch(`${API_BASE}/api/generate`, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ job_title: jobTitle })
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-// === Compare (new compare section) ===
+// Compare endpoint helper (no overlap with your existing functions)
 async function compareRoles(roleA, roleB) {
   const r = await fetch(`${API_BASE}/api/compare`, {
     method: "POST",
@@ -252,58 +243,66 @@ async function compareRoles(roleA, roleB) {
   return r.json();
 }
 
-// Wire to your existing UI ids:
+// Wire up the existing button id WITHOUT redeclaring compareBtn variable
 document.getElementById("compareBtn")?.addEventListener("click", async () => {
   const roleA = document.getElementById("roleA").value.trim();
   const roleB = document.getElementById("roleB").value.trim();
   const err = document.getElementById("compareError");
   const loader = document.getElementById("compareLoader");
   const out = document.getElementById("compareResults");
+  const tbody = document.getElementById("compareTableBody");
+
   err.style.display = "none";
   out.style.display = "none";
+
+  if (!roleA || !roleB) {
+    err.textContent = "Please enter both roles.";
+    err.style.display = "block";
+    return;
+  }
+
   loader.style.display = "block";
   try {
     const data = await compareRoles(roleA, roleB);
     loader.style.display = "none";
     out.style.display = "block";
 
-    // supports both strict JSON and ai_text fallback
+    // Support plain JSON or ai_text JSON
     let payload = data;
     if (data.ai_text) {
       try { payload = JSON.parse(data.ai_text); } catch {}
     }
 
-    // summary
+    // Headings
     document.getElementById("roleA_th").textContent = roleA || "Role A";
     document.getElementById("roleB_th").textContent = roleB || "Role B";
-    document.getElementById("roleA_summary").textContent = roleA;
-    document.getElementById("roleB_summary").textContent = roleB;
 
-    // table rows
-    const tbody = document.getElementById("compareTableBody");
+    // Table rows
     tbody.innerHTML = "";
     (payload.table || []).forEach(row => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td style="padding:8px;">${row.metric || ""}</td>
-        <td style="padding:8px;">${row.a || row.role_a || ""}</td>
-        <td style="padding:8px;">${row.b || row.role_b || ""}</td>`;
+        <td style="padding:8px;">${row.metric ?? ""}</td>
+        <td style="padding:8px;">${row.a ?? row.roleA ?? row.role_a ?? ""}</td>
+        <td style="padding:8px;">${row.b ?? row.roleB ?? row.role_b ?? ""}</td>
+      `;
       tbody.appendChild(tr);
     });
 
-    // skills
-    const toChip = (txt) => `<div class="skill-chip">${txt}</div>`;
-    document.getElementById("skillsOverlap").innerHTML =
-      (payload.skills_overlap || []).map(toChip).join("");
-    document.getElementById("skillsOnlyA").innerHTML =
-      (payload.unique_a || []).map(toChip).join("");
-    document.getElementById("skillsOnlyB").innerHTML =
-      (payload.unique_b || []).map(toChip).join("");
+    // Optional skills chips (only if you added these containers in HTML)
+    const chips = txts => (txts || []).map(t => `<div class="skill-chip">${t}</div>`).join("");
+    const overlap = document.getElementById("skillsOverlap");
+    const onlyA   = document.getElementById("skillsOnlyA");
+    const onlyB   = document.getElementById("skillsOnlyB");
 
+    if (overlap) overlap.innerHTML = chips(payload.skills_overlap);
+    if (onlyA)   onlyA.innerHTML   = chips(payload.unique_a);
+    if (onlyB)   onlyB.innerHTML   = chips(payload.unique_b);
 
   } catch (e) {
     loader.style.display = "none";
     err.textContent = `Compare failed: ${e.message}`;
     err.style.display = "block";
+    console.error(e);
   }
 });
