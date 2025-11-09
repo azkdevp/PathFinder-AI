@@ -40,6 +40,10 @@ Using **Gemini Pro** on **Google Cloud Run**, it creates **personalized, data-ba
 - 🧑‍💼 Bridges the gap between **education, employability, and AI literacy**
 
 
+## 🎥 Videos
+- **Demo Video:** [https://youtu.be/b3fOA-uYV60]  
+
+
 ## 🏆 Built With
 `Gemini Pro` · `Google Cloud Run` · `HTML` · `CSS` · `JavaScript` · `FastAPI`  
 
