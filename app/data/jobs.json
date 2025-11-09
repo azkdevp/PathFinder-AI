@@ -1,0 +1,30 @@
+{
+  "data scientist": {
+    "skills": ["Python", "Statistics", "SQL", "Pandas/Numpy", "Data Visualization", "Machine Learning", "Model Evaluation", "Deep Learning", "MLOps Basics", "Communication"],
+    "courses": [
+      {"title":"Kaggle: Intro to ML", "url":"https://www.kaggle.com/learn/intro-to-machine-learning"},
+      {"title":"fast.ai: Practical Deep Learning", "url":"https://course.fast.ai"},
+      {"title":"Google: Data Analytics", "url":"https://www.coursera.org/professional-certificates/google-data-analytics"}
+    ],
+    "avg_salary_usd": "85k–120k",
+    "duration_months": 6
+  },
+  "ui/ux designer": {
+    "skills": ["Figma", "Design Systems", "User Research", "Prototyping", "Usability Testing", "Accessibility", "Design Handoff", "HTML/CSS Basics", "Information Architecture", "Portfolio Craft"],
+    "courses": [
+      {"title":"Google UX Design", "url":"https://www.coursera.org/professional-certificates/google-ux-design"},
+      {"title":"Figma Basics", "url":"https://help.figma.com/hc/en-us/articles/360040328673"}
+    ],
+    "avg_salary_usd": "60k–95k",
+    "duration_months": 5
+  },
+  "frontend developer": {
+    "skills": ["HTML", "CSS", "JavaScript", "React", "Git/GitHub", "APIs/REST", "Testing Basics", "Performance", "Accessibility (a11y)", "Deploy (Vercel/GCP)"],
+    "courses": [
+      {"title":"MDN Web Docs (Learn Web Dev)", "url":"https://developer.mozilla.org/en-US/docs/Learn"},
+      {"title":"React Docs (Beta)", "url":"https://beta.reactjs.org/learn"}
+    ],
+    "avg_salary_usd": "70k–110k",
+    "duration_months": 5
+  }
+}
