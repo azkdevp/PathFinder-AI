@@ -226,3 +226,85 @@ compareBtn.addEventListener("click", compareRoadmaps);
 compareInput.addEventListener("keypress", e => { if (e.key === "Enter") compareRoadmaps(); });
 
 generateStarfield();
+
+// ============= Compare Roles Logic =============
+const compareBtn = document.getElementById("compareBtn");
+const compareLoader = document.getElementById("compareLoader");
+const compareResults = document.getElementById("compareResults");
+const compareError = document.getElementById("compareError");
+const compareTableBody = document.getElementById("compareTableBody");
+
+compareBtn?.addEventListener("click", async () => {
+  const roleA = document.getElementById("roleA").value.trim();
+  const roleB = document.getElementById("roleB").value.trim();
+  compareError.style.display = "none";
+  compareResults.style.display = "none";
+
+  if (!roleA || !roleB) {
+    compareError.textContent = "Please enter both roles.";
+    compareError.style.display = "block";
+    return;
+  }
+
+  compareLoader.style.display = "block";
+
+  try {
+    const resp = await fetch("https://pathfinder-246290474963.us-central1.run.app/api/compare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role_a: roleA, role_b: roleB }),
+    });
+
+    if (!resp.ok) throw new Error("Failed to fetch comparison.");
+
+    const data = await resp.json();
+    compareLoader.style.display = "none";
+    compareResults.style.display = "block";
+
+    // Fill comparison table
+    compareTableBody.innerHTML = "";
+    if (data.table && data.table.length > 0) {
+      data.table.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="padding:8px;">${row.metric}</td>
+          <td style="padding:8px;">${row.roleA}</td>
+          <td style="padding:8px;">${row.roleB}</td>
+        `;
+        compareTableBody.appendChild(tr);
+      });
+    }
+
+    // Add AI suggestions
+    let insightsHTML = "";
+    if (data.suggestions && data.suggestions.length > 0) {
+      insightsHTML = `
+        <div class="glass-card">
+          <h3>💡 Gemini Insights</h3>
+          <ul style="list-style:disc; margin-left:1.5rem;">
+            ${data.suggestions.map((tip) => `<li>${tip}</li>`).join("")}
+          </ul>
+        </div>
+      `;
+    }
+
+    // Skills overlap and unique (optional display)
+    if (data.skills_overlap) {
+      insightsHTML += `
+        <div class="glass-card">
+          <h3>Skills Comparison</h3>
+          <p><strong>Overlap:</strong> ${data.skills_overlap.join(", ")}</p>
+          <p><strong>Unique to ${roleA}:</strong> ${data.unique_a.join(", ")}</p>
+          <p><strong>Unique to ${roleB}:</strong> ${data.unique_b.join(", ")}</p>
+        </div>
+      `;
+    }
+
+    compareResults.insertAdjacentHTML("beforeend", insightsHTML);
+  } catch (err) {
+    compareLoader.style.display = "none";
+    compareError.textContent = "AI comparison failed. Try again.";
+    compareError.style.display = "block";
+    console.error(err);
+  }
+});
