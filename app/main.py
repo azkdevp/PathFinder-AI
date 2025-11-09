@@ -50,7 +50,7 @@ def compare_roles(req: CompareModel):
         raise HTTPException(status_code=400, detail="Both roles are required.")
 
     try:
-        model = GenerativeModel("gemini-1.5-flash")
+        model = GenerativeModel("gemini-2.5-flash")
 
         PROMPT = f"""
         Compare two careers: "{role_a}" and "{role_b}".
