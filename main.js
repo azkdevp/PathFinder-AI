@@ -43,18 +43,28 @@ function showLoader(show) {
 // --- Improved JSON extraction ---
 function tryExtractJson(text) {
   if (!text) return null;
-  const stripped = text.replace(/```json|```/g, "").trim();
+
+  // Remove common wrappers: ```json ... ```, or "json\n{"
+  let cleaned = text
+    .replace(/^json\s*/i, "")
+    .replace(/```json|```/g, "")
+    .trim();
+
+  // Try full parse
   try {
-    return JSON.parse(stripped);
+    return JSON.parse(cleaned);
   } catch {}
-  const start = stripped.indexOf("{");
-  const end = stripped.lastIndexOf("}");
+
+  // Try substring between first and last braces
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
   if (start !== -1 && end !== -1 && end > start) {
-    const maybe = stripped.slice(start, end + 1);
+    const maybe = cleaned.slice(start, end + 1);
     try {
       return JSON.parse(maybe);
     } catch {}
   }
+
   return null;
 }
 
@@ -192,9 +202,11 @@ document.getElementById("compareBtn")?.addEventListener("click", async () => {
   const loader = document.getElementById("compareLoader");
   const out = document.getElementById("compareResults");
   const tbody = document.getElementById("compareTableBody");
+  const desc = document.getElementById("compareDescription"); // for summary text
 
   err.style.display = "none";
   out.style.display = "none";
+  if (desc) desc.style.display = "none";
 
   if (!roleA || !roleB) {
     err.textContent = "Please enter both roles.";
@@ -211,8 +223,18 @@ document.getElementById("compareBtn")?.addEventListener("click", async () => {
     let payload = data;
     if (data.ai_text) {
       try {
-        payload = JSON.parse(data.ai_text);
-      } catch {}
+        let cleaned = data.ai_text
+          .replace(/^json\s*/i, "")
+          .replace(/```json|```/g, "")
+          .trim();
+
+        const start = cleaned.indexOf("{");
+        const end = cleaned.lastIndexOf("}");
+        if (start !== -1 && end !== -1) cleaned = cleaned.slice(start, end + 1);
+        payload = JSON.parse(cleaned);
+      } catch (e) {
+        console.warn("Could not parse compare JSON:", e);
+      }
     }
 
     document.getElementById("roleA_th").textContent = roleA || "Role A";
@@ -229,7 +251,7 @@ document.getElementById("compareBtn")?.addEventListener("click", async () => {
       tbody.appendChild(tr);
     });
 
-    // Optional skill chips
+    // Optional skills
     const chip = (s) => `<div class="skill-chip">${s}</div>`;
     const overlap = document.getElementById("skillsOverlap");
     const onlyA = document.getElementById("skillsOnlyA");
@@ -238,6 +260,12 @@ document.getElementById("compareBtn")?.addEventListener("click", async () => {
     if (overlap) overlap.innerHTML = (payload.skills_overlap || []).map(chip).join("");
     if (onlyA) onlyA.innerHTML = (payload.unique_a || []).map(chip).join("");
     if (onlyB) onlyB.innerHTML = (payload.unique_b || []).map(chip).join("");
+
+    // Add summary/description if available
+    if (desc && payload.description) {
+      desc.textContent = payload.description;
+      desc.style.display = "block";
+    }
 
   } catch (e) {
     loader.style.display = "none";
