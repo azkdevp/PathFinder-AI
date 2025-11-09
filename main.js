@@ -1,5 +1,5 @@
 // === CONFIG ===
-const API_URL = "https://pathfinder-246290474963.us-central1.run.app/api/generate";
+const API_URL  = "https://pathfinder-246290474963.us-central1.run.app/api/generate";
 const API_BASE = "https://pathfinder-246290474963.us-central1.run.app";
 
 // === Starfield effect ===
@@ -19,52 +19,41 @@ function generateStarfield() {
 // === Navbar scroll effect ===
 const navbar = document.getElementById("navbar");
 window.addEventListener("scroll", () => {
+  if (!navbar) return;
   navbar.classList.toggle("scrolled", window.scrollY > 50);
 });
 
-// === Elements ===
-const generateBtn = document.getElementById("generateBtn");
-const jobInput = document.getElementById("jobInput");
-const loader = document.getElementById("loader");
-const results = document.getElementById("results");
-const demoOutput = document.getElementById("demoOutput");
-const skillsGrid = document.getElementById("skillsGrid");
-const courseList = document.getElementById("courseList");
+// === Elements (single-role) ===
+const generateBtn   = document.getElementById("generateBtn");
+const jobInput      = document.getElementById("jobInput");
+const loader        = document.getElementById("loader");
+const results       = document.getElementById("results");
+const demoOutput    = document.getElementById("demoOutput");
+const skillsGrid    = document.getElementById("skillsGrid");
+const courseList    = document.getElementById("courseList");
 const durationValue = document.getElementById("durationValue");
-const salaryValue = document.getElementById("salaryValue");
-const downloadBtn = document.getElementById("downloadBtn");
+const salaryValue   = document.getElementById("salaryValue");
+const downloadBtn   = document.getElementById("downloadBtn");
+
+// === Compare section root (exists on page) ===
 const compareSection = document.getElementById("compareResults");
 
 // === Helper ===
 function showLoader(show) {
+  if (!loader) return;
   loader.style.display = show ? "block" : "none";
 }
 
-// --- Improved JSON extraction ---
-function tryExtractJson(text) {
-  if (!text) return null;
-
-  // Remove common wrappers: ```json ... ```, or "json\n{"
-  let cleaned = text
-    .replace(/^json\s*/i, "")
-    .replace(/```json|```/g, "")
-    .trim();
-
-  // Try full parse
-  try {
-    return JSON.parse(cleaned);
-  } catch {}
-
-  // Try substring between first and last braces
+// Robustly parse possible ```json … ``` or "json\n{…}"
+function parseAiJsonMaybe(text) {
+  if (!text || typeof text !== "string") return null;
+  let cleaned = text.replace(/```json|```/g, "").replace(/^json\s*/i, "").trim();
+  try { return JSON.parse(cleaned); } catch {}
   const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
+  const end   = cleaned.lastIndexOf("}");
   if (start !== -1 && end !== -1 && end > start) {
-    const maybe = cleaned.slice(start, end + 1);
-    try {
-      return JSON.parse(maybe);
-    } catch {}
+    try { return JSON.parse(cleaned.slice(start, end + 1)); } catch {}
   }
-
   return null;
 }
 
@@ -78,27 +67,28 @@ async function fetchRoadmap(role) {
   const data = await res.json();
 
   if (data.ai_text) {
-    const parsed = tryExtractJson(data.ai_text);
-    if (parsed) return parsed;
-    return { description: data.ai_text };
+    const parsed = parseAiJsonMaybe(data.ai_text);
+    return parsed || { description: data.ai_text };
   }
   return data;
 }
 
 // === Generate single roadmap ===
 async function generateRoadmap() {
-  const role = jobInput.value.trim();
+  const role = (jobInput?.value || "").trim();
   if (!role) {
     alert("Please enter a job title!");
     return;
   }
 
-  compareSection.style.display = "none";
-  demoOutput.classList.add("visible");
+  if (compareSection) compareSection.style.display = "none";
+  demoOutput?.classList.add("visible");
   showLoader(true);
-  results.style.display = "none";
-  generateBtn.disabled = true;
-  generateBtn.textContent = "Generating…";
+  if (results) results.style.display = "none";
+  if (generateBtn) {
+    generateBtn.disabled = true;
+    generateBtn.textContent = "Generating…";
+  }
 
   try {
     const data = await fetchRoadmap(role);
@@ -108,48 +98,54 @@ async function generateRoadmap() {
     alert("Something went wrong. Please try again later.");
   } finally {
     showLoader(false);
-    generateBtn.disabled = false;
-    generateBtn.textContent = "Generate My Roadmap";
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.textContent = "Generate My Roadmap";
+    }
   }
 }
 
 // === Populate roadmap results ===
 function populateResults(data, role) {
-  results.style.display = "block";
-  skillsGrid.innerHTML = "";
-  courseList.innerHTML = "";
+  if (results) results.style.display = "block";
+  if (skillsGrid) skillsGrid.innerHTML = "";
+  if (courseList) courseList.innerHTML = "";
 
-  const skills = data.skills || [];
-  const courses = data.courses || [];
+  const skills  = Array.isArray(data.skills)  ? data.skills  : [];
+  const courses = Array.isArray(data.courses) ? data.courses : [];
 
-  if (skills.length) {
-    skills.forEach((s) => {
-      const chip = document.createElement("div");
-      chip.className = "skill-chip";
-      chip.textContent = s;
-      skillsGrid.appendChild(chip);
-    });
-  } else {
-    skillsGrid.innerHTML = "<p style='color:#aaa;'>No skills data found.</p>";
+  if (skillsGrid) {
+    if (skills.length) {
+      skills.forEach((s) => {
+        const chip = document.createElement("div");
+        chip.className = "skill-chip";
+        chip.textContent = s;
+        skillsGrid.appendChild(chip);
+      });
+    } else {
+      skillsGrid.innerHTML = "<p style='color:#aaa;'>No skills data found.</p>";
+    }
   }
 
-  if (courses.length) {
-    courses.forEach((c) => {
-      const item = document.createElement("div");
-      item.className = "course-item";
-      item.innerHTML = `<a href="${c.url}" target="_blank">${c.title}</a>`;
-      courseList.appendChild(item);
-    });
-  } else {
-    courseList.innerHTML = "<p style='color:#aaa;'>No courses data found.</p>";
+  if (courseList) {
+    if (courses.length) {
+      courses.forEach((c) => {
+        const item = document.createElement("div");
+        item.className = "course-item";
+        const title = (c && c.title) ? c.title : "Course";
+        const url   = (c && c.url)   ? c.url   : "#";
+        item.innerHTML = `<a href="${url}" target="_blank" rel="noopener">${title}</a>`;
+        courseList.appendChild(item);
+      });
+    } else {
+      courseList.innerHTML = "<p style='color:#aaa;'>No courses data found.</p>";
+    }
   }
 
-  durationValue.textContent = data.duration_months
-    ? `${data.duration_months} months`
-    : "N/A";
-  salaryValue.textContent = data.avg_salary_usd || "N/A";
+  if (durationValue) durationValue.textContent = data.duration_months ? `${data.duration_months} months` : "N/A";
+  if (salaryValue)   salaryValue.textContent   = data.avg_salary_usd || "N/A";
 
-  downloadBtn.onclick = () => downloadRoadmap(role, data);
+  if (downloadBtn) downloadBtn.onclick = () => downloadRoadmap(role, data);
 }
 
 // === Download roadmap ===
@@ -164,9 +160,7 @@ Top Skills:
 ${(data.skills || []).map((s, i) => `${i + 1}. ${s}`).join("\n")}
 
 Recommended Courses:
-${(data.courses || [])
-    .map((c, i) => `${i + 1}. ${c.title}\n   ${c.url}`)
-    .join("\n\n")}
+${(data.courses || []).map((c, i) => `${i + 1}. ${c.title}\n   ${c.url}`).join("\n\n")}
 
 Duration: ${data.duration_months || "N/A"} months
 Avg Salary: ${data.avg_salary_usd || "N/A"}
@@ -195,90 +189,114 @@ async function compareRoles(roleA, roleB) {
   return r.json();
 }
 
+// Wire compare
 document.getElementById("compareBtn")?.addEventListener("click", async () => {
-  const roleA = document.getElementById("roleA").value.trim();
-  const roleB = document.getElementById("roleB").value.trim();
-  const err = document.getElementById("compareError");
-  const loader = document.getElementById("compareLoader");
-  const out = document.getElementById("compareResults");
-  const tbody = document.getElementById("compareTableBody");
-  const desc = document.getElementById("compareDescription"); // for summary text
+  const roleAInput = document.getElementById("roleA");
+  const roleBInput = document.getElementById("roleB");
+  const roleA = (roleAInput?.value || "").trim();
+  const roleB = (roleBInput?.value || "").trim();
 
-  err.style.display = "none";
-  out.style.display = "none";
-  if (desc) desc.style.display = "none";
+  const err    = document.getElementById("compareError");
+  const spin   = document.getElementById("compareLoader");
+  const out    = document.getElementById("compareResults");
+  const tbody  = document.getElementById("compareTableBody");
+
+  // Optional blocks if you added them
+  const summaryWrap = document.getElementById("compareDescription");
+  const summaryText = document.getElementById("compareSummaryText");
+  const overlapEl   = document.getElementById("skillsOverlap");
+  const onlyAEl     = document.getElementById("skillsOnlyA");
+  const onlyBEl     = document.getElementById("skillsOnlyB");
+
+  if (err)  { err.style.display = "none"; err.textContent = ""; }
+  if (out)  out.style.display = "none";
+  if (spin) spin.style.display = "block";
+  if (summaryWrap) summaryWrap.style.display = "none";
 
   if (!roleA || !roleB) {
-    err.textContent = "Please enter both roles.";
-    err.style.display = "block";
+    if (spin) spin.style.display = "none";
+    if (err) {
+      err.textContent = "Please enter both roles.";
+      err.style.display = "block";
+    }
     return;
   }
 
-  loader.style.display = "block";
   try {
-    const data = await compareRoles(roleA, roleB);
-    loader.style.display = "none";
-    out.style.display = "block";
+    const raw = await compareRoles(roleA, roleB);
 
-    let payload = data;
-    if (data.ai_text) {
-      try {
-        let cleaned = data.ai_text
-          .replace(/^json\s*/i, "")
-          .replace(/```json|```/g, "")
-          .trim();
-
-        const start = cleaned.indexOf("{");
-        const end = cleaned.lastIndexOf("}");
-        if (start !== -1 && end !== -1) cleaned = cleaned.slice(start, end + 1);
-        payload = JSON.parse(cleaned);
-      } catch (e) {
-        console.warn("Could not parse compare JSON:", e);
-      }
+    // Support plain JSON or ai_text JSON
+    let payload = raw;
+    if (raw.ai_text) {
+      const parsed = parseAiJsonMaybe(raw.ai_text);
+      if (parsed) payload = parsed;
     }
 
-    document.getElementById("roleA_th").textContent = roleA || "Role A";
-    document.getElementById("roleB_th").textContent = roleB || "Role B";
+    // Headings
+    const thA = document.getElementById("roleA_th");
+    const thB = document.getElementById("roleB_th");
+    if (thA) thA.textContent = roleA;
+    if (thB) thB.textContent = roleB;
 
-    tbody.innerHTML = "";
-    (payload.table || []).forEach((row) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td style="padding:8px;">${row.metric ?? ""}</td>
-        <td style="padding:8px;">${row.a ?? row.roleA ?? row.role_a ?? ""}</td>
-        <td style="padding:8px;">${row.b ?? row.roleB ?? row.role_b ?? ""}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+    // Build table rows robustly, regardless of column key names
+    if (tbody) {
+      tbody.innerHTML = "";
+      (payload.table || []).forEach((row) => {
+        // Identify metric key and the two role keys
+        const keys = Object.keys(row);
+        const metricKey = keys.includes("metric") ? "metric" : keys[0];
 
-    // Optional skills
+        // Prefer explicit common names; otherwise take the first two non-metric keys in order
+        const roleKeys = keys.filter(k => k !== metricKey);
+        const leftKey  = row["Data Scientist"] !== undefined ? "Data Scientist"
+                      : row["roleA"] !== undefined ? "roleA"
+                      : row["a"] !== undefined ? "a"
+                      : roleKeys[0];
+        const rightKey = row["ML Engineer"] !== undefined ? "ML Engineer"
+                      : row["roleB"] !== undefined ? "roleB"
+                      : row["b"] !== undefined ? "b"
+                      : roleKeys[1];
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="padding:8px;">${row[metricKey] ?? ""}</td>
+          <td style="padding:8px;">${(leftKey ? row[leftKey] : "") ?? ""}</td>
+          <td style="padding:8px;">${(rightKey ? row[rightKey] : "") ?? ""}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Summary (optional block)
+    const summary = payload.summary || payload.description;
+    if (summary && summaryWrap && summaryText) {
+      summaryText.textContent = summary;
+      summaryWrap.style.display = "block";
+    }
+
+    // Skills chips (optional blocks)
     const chip = (s) => `<div class="skill-chip">${s}</div>`;
-    const overlap = document.getElementById("skillsOverlap");
-    const onlyA = document.getElementById("skillsOnlyA");
-    const onlyB = document.getElementById("skillsOnlyB");
+    if (overlapEl) overlapEl.innerHTML = (payload.skills_overlap || []).map(chip).join("");
+    if (onlyAEl)   onlyAEl.innerHTML   = (payload.unique_a || []).map(chip).join("");
+    if (onlyBEl)   onlyBEl.innerHTML   = (payload.unique_b || []).map(chip).join("");
 
-    if (overlap) overlap.innerHTML = (payload.skills_overlap || []).map(chip).join("");
-    if (onlyA) onlyA.innerHTML = (payload.unique_a || []).map(chip).join("");
-    if (onlyB) onlyB.innerHTML = (payload.unique_b || []).map(chip).join("");
-
-    // Add summary/description if available
-    if (desc && payload.description) {
-      desc.textContent = payload.description;
-      desc.style.display = "block";
-    }
-
+    if (out) out.style.display = "block";
   } catch (e) {
-    loader.style.display = "none";
-    err.textContent = `Compare failed: ${e.message}`;
-    err.style.display = "block";
     console.error(e);
+    if (err) {
+      err.textContent = `Compare failed: ${e.message}`;
+      err.style.display = "block";
+    }
+  } finally {
+    if (spin) spin.style.display = "none";
   }
 });
 
-// === Event Listeners ===
-generateBtn.addEventListener("click", generateRoadmap);
-jobInput.addEventListener("keypress", (e) => {
+// === Event Listeners (single role) ===
+generateBtn?.addEventListener("click", generateRoadmap);
+jobInput?.addEventListener("keypress", (e) => {
   if (e.key === "Enter") generateRoadmap();
 });
 
+// init
 generateStarfield();
