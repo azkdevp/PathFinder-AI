@@ -127,9 +127,4 @@ uvicorn main:app --reload --port 8080
   `gcloud run deploy pathfinder --image gcr.io/<PROJECT_ID>/pathfinder --platform managed`
 
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for details.
-
-
 **© 2025 PathFinder AI · All rights reserved · Built by Azkhan**
